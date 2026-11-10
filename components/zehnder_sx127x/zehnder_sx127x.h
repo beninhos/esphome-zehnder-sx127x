@@ -2,6 +2,7 @@
 
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "esphome/components/fan/fan.h"
+#include "esphome/components/sensor/sensor.h"
 #include "esphome/components/sx127x/sx127x.h"
 #include "esphome/core/component.h"
 #include "esphome/core/helpers.h"
@@ -20,6 +21,8 @@ class ZehnderSX127x : public fan::Fan, public Component, public sx127x::SX127xLi
   void set_remote_id(uint8_t id) { this->remote_id_ = id; }
   void set_query_interval(uint32_t ms) { this->query_interval_ = ms; }
   void set_confirmed_binary_sensor(binary_sensor::BinarySensor *s) { this->confirmed_ = s; }
+  void set_signal_sensor(sensor::Sensor *s) { this->signal_ = s; }
+  void set_noise_sensor(sensor::Sensor *s) { this->noise_ = s; }
 
   void setup() override;
   void loop() override;
@@ -39,6 +42,15 @@ class ZehnderSX127x : public fan::Fan, public Component, public sx127x::SX127xLi
 
   sx127x::SX127x *parent_{nullptr};
   binary_sensor::BinarySensor *confirmed_{nullptr};
+  sensor::Sensor *signal_{nullptr};
+  sensor::Sensor *noise_{nullptr};
+  float rssi_at_sync_{NAN};
+  float fan_rssi_{NAN};
+  bool fan_rssi_pending_{false};
+  uint32_t fan_rssi_at_{0};
+  float noise_sum_{0};
+  uint32_t noise_count_{0};
+  uint32_t noise_since_{0};
   HighFrequencyLoopRequester high_freq_;
   uint32_t network_id_{0};
   uint8_t fan_id_{0};

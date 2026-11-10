@@ -12,7 +12,9 @@ What it does:
   with 0x05, like the RFZ does;
 - the fan is queried every `query_interval`. Speed changes made with an RFZ are picked up as well, because
   the fan's replies to the remote are heard too;
-- a `confirmed` binary sensor that goes off when the fan has not answered for 3 query intervals.
+- a `confirmed` binary sensor that goes off when the fan has not answered for 3 query intervals;
+- optional `signal` (strength of the fan's replies) and `noise` (background between frames, every 10 s) sensors in
+  dBm, handy when choosing a spot. Ours: -71 dBm signal, -110 dBm noise.
 
 No pairing is needed. The fan answered queries and speed commands from a remote ID it had never paired with.
 

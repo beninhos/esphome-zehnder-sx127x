@@ -63,3 +63,7 @@ fan:
     query_interval: 60s
     confirmed:
       name: Ventilation confirmed
+    signal:
+      name: Fan signal
+    noise:
+      name: RF noise

@@ -1,4 +1,5 @@
 #include "zehnder_sx127x.h"
+#include <cmath>
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 
@@ -16,6 +17,8 @@ static constexpr uint32_t ACK_DELAY_MS = 300;  // after the last copy of the fan
 // SX127x FSK registers used directly (the sx127x component does not expose these settings).
 static constexpr uint8_t REG_RX_CONFIG = 0x0D;
 static constexpr uint8_t REG_IRQ_FLAGS1 = 0x3E;
+static constexpr uint8_t REG_RSSI_VALUE = 0x11;  // FSK: -value/2 dBm
+static constexpr uint32_t NOISE_REPORT_MS = 10000;
 static constexpr uint8_t RX_RESTART = 0x40;
 static constexpr uint8_t AFC_AUTO_ON = 0x10;
 static constexpr uint8_t IRQ_RSSI = 0x08;
@@ -66,6 +69,20 @@ void ZehnderSX127x::loop() {
     this->send_(this->fan_id_, CMD_QUERY, 0, 0, QUERY_TRIES);
   }
 
+  // Sensor updates wait until a burst of frames is over: publishing takes milliseconds.
+  if (this->fan_rssi_pending_ && (int32_t) (now - this->fan_rssi_at_) >= 0) {
+    this->fan_rssi_pending_ = false;
+    if (this->signal_ != nullptr)
+      this->signal_->publish_state(this->fan_rssi_);
+  }
+  if (now - this->noise_since_ >= NOISE_REPORT_MS && !this->fan_rssi_pending_) {
+    if (this->noise_ != nullptr && this->noise_count_ > 0)
+      this->noise_->publish_state(this->noise_sum_ / this->noise_count_);
+    this->noise_sum_ = 0;
+    this->noise_count_ = 0;
+    this->noise_since_ = now;
+  }
+
   if (this->confirmed_ != nullptr) {
     bool ok = this->have_reply_ && now - this->last_reply_ < 3 * this->query_interval_ + 5000;
     if (!this->confirmed_->has_state() || this->confirmed_->state != ok)
@@ -81,6 +98,15 @@ void ZehnderSX127x::watch_receiver_() {
     return;
   this->last_poll_us_ = now_us;
   uint8_t irq = this->read_reg_(REG_IRQ_FLAGS1);
+  float rssi = -this->read_reg_(REG_RSSI_VALUE) / 2.0f;
+  if (irq & IRQ_SYNC_MATCH) {
+    // During the packet: its signal strength. Highest sample, one sample alone can fall on a bad moment.
+    if (std::isnan(this->rssi_at_sync_) || rssi > this->rssi_at_sync_)
+      this->rssi_at_sync_ = rssi;
+  } else {
+    this->noise_sum_ += rssi;  // between packets: background level
+    this->noise_count_++;
+  }
   if (!(irq & IRQ_RSSI) || (irq & IRQ_SYNC_MATCH)) {
     this->triggered_ = false;
     return;
@@ -132,6 +158,8 @@ void ZehnderSX127x::transmit_frame_(const uint8_t *frame) {
 
 void ZehnderSX127x::on_packet(const std::vector<uint8_t> &packet, float rssi, float snr) {
   uint8_t f[FRAME_LEN];
+  float packet_rssi = this->rssi_at_sync_;
+  this->rssi_at_sync_ = NAN;
   if (packet.size() != AIR_LEN || !decode(packet.data(), f))
     return;
   // Verbose only: logging every frame over wifi takes milliseconds, and frames arrive ~25 ms apart in bursts.
@@ -145,14 +173,21 @@ void ZehnderSX127x::on_packet(const std::vector<uint8_t> &packet, float rssi, fl
   // Settings from the fan, to us or to an RFZ remote: either way it is the fan's current speed.
   this->last_reply_ = millis();
   this->have_reply_ = true;
+  if (f[TTL_BYTE] == TTL) {  // the fan's own first copy, not a repeat: its signal strength here
+    this->fan_rssi_ = packet_rssi;
+    this->fan_rssi_pending_ = true;
+  }
+  if (this->fan_rssi_pending_)
+    this->fan_rssi_at_ = this->last_reply_ + ACK_DELAY_MS;
   uint8_t speed = f[PARAMS];  // params: speed, voltage %, timer, ...
   bool to_us = f[RX_TYPE] == TYPE_REMOTE && f[RX_ID] == this->remote_id_;
   bool setting = this->waiting_ && this->tx_frame_[COMMAND] == CMD_SET_SPEED;
   if (setting && speed != this->tx_frame_[PARAMS]) {
     // Seen when a new speed follows the previous one within seconds: the fan answers with its old speed and
     // ignores the command. Not a confirmation; keep resending.
-    if (f[TTL_BYTE] == TTL)  // once per burst, not for each repeated copy
+    if (f[TTL_BYTE] == TTL) {  // once per burst, not for each repeated copy
       ESP_LOGD(TAG, "Fan still reports speed %u, wanted %u", speed, this->tx_frame_[PARAMS]);
+    }
     return;
   }
   if (to_us && this->waiting_) {
