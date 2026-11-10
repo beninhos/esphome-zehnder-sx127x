@@ -52,7 +52,7 @@ void ZehnderSX127x::loop() {
   } else if (this->waiting_ && this->tries_left_ == 0 && (int32_t) (now - this->next_try_) >= 0) {
     this->waiting_ = false;
     ESP_LOGW(TAG, "No confirmation from fan 0x%02X", this->fan_id_);
-    if (this->tx_frame_[COMMAND] == CMD_SET_SPEED)
+    if (this->tx_frame_[COMMAND] != CMD_QUERY)
       this->last_query_ = now - this->query_interval_;  // ask what the fan does now, so the entity shows the truth
   }
 
@@ -66,7 +66,7 @@ void ZehnderSX127x::loop() {
 
   if (!this->waiting_ && !this->ack_pending_ && now - this->last_query_ >= this->query_interval_) {
     this->last_query_ = now;
-    this->send_(this->fan_id_, CMD_QUERY, 0, 0, QUERY_TRIES);
+    this->send_(this->fan_id_, CMD_QUERY, nullptr, 0, QUERY_TRIES);
   }
 
   // Sensor updates wait until a burst of frames is over: publishing takes milliseconds.
@@ -126,18 +126,26 @@ void ZehnderSX127x::control(const fan::FanCall &call) {
     this->state = *call.get_state();
   if (call.get_speed().has_value())
     this->speed = *call.get_speed();
-  if (this->state && this->speed == 0)
+  // The RFZ has no off, only speed 1-3 (RPMe manual): off means the lowest speed.
+  if (!this->state || this->speed == 0) {
+    this->state = true;
     this->speed = 1;
-  // shortcut: off sends speed 0 like the original firmware; not tested on an RPMe, verify before relying on it
-  uint8_t speed = this->state ? this->speed : 0;
+  }
+  uint8_t speed = this->speed;
   ESP_LOGD(TAG, "Set speed %u", speed);
   // Speed goes to main unit ID 0x00, as the RFZ remote does it.
-  this->send_(0x00, CMD_SET_SPEED, speed, 1, SPEED_TRIES);
+  this->send_(0x00, CMD_SET_SPEED, &speed, 1, SPEED_TRIES);
   this->publish_state();  // optimistic; corrected by the fan's confirmation
 }
 
-void ZehnderSX127x::send_(uint8_t rx_id, uint8_t command, uint8_t param, uint8_t count, uint8_t tries) {
-  build(this->tx_frame_, this->network_id_, rx_id, this->remote_id_, command, &param, count);
+void ZehnderSX127x::set_timer(uint8_t minutes) {
+  const uint8_t params[2] = {3, minutes};
+  ESP_LOGD(TAG, "Set speed 3 for %u minutes", minutes);
+  this->send_(0x00, CMD_SET_TIMER, params, 2, SPEED_TRIES);
+}
+
+void ZehnderSX127x::send_(uint8_t rx_id, uint8_t command, const uint8_t *params, uint8_t count, uint8_t tries) {
+  build(this->tx_frame_, this->network_id_, rx_id, this->remote_id_, command, params, count);
   this->tries_left_ = tries;
   this->waiting_ = true;
   this->transmit_();
@@ -181,7 +189,8 @@ void ZehnderSX127x::on_packet(const std::vector<uint8_t> &packet, float rssi, fl
     this->fan_rssi_at_ = this->last_reply_ + ACK_DELAY_MS;
   uint8_t speed = f[PARAMS];  // params: speed, voltage %, timer, ...
   bool to_us = f[RX_TYPE] == TYPE_REMOTE && f[RX_ID] == this->remote_id_;
-  bool setting = this->waiting_ && this->tx_frame_[COMMAND] == CMD_SET_SPEED;
+  bool setting = this->waiting_ &&
+                 (this->tx_frame_[COMMAND] == CMD_SET_SPEED || this->tx_frame_[COMMAND] == CMD_SET_TIMER);
   if (setting && speed != this->tx_frame_[PARAMS]) {
     // Seen when a new speed follows the previous one within seconds: the fan answers with its old speed and
     // ignores the command. Not a confirmation; keep resending.
@@ -198,6 +207,7 @@ void ZehnderSX127x::on_packet(const std::vector<uint8_t> &packet, float rssi, fl
   }
   if (to_us && this->ack_pending_)
     this->ack_at_ = millis() + ACK_DELAY_MS;  // every copy of the reply pushes the ack to after the burst
+  this->timer_ = f[PARAMS + 2];  // params: speed, voltage %, timer, ...
   bool on = speed > 0;
   int level = speed > 3 ? 3 : speed;
   if (on != this->state || (on && level != this->speed)) {

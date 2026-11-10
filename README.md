@@ -7,7 +7,10 @@ and only reach 1-2 m at 868 MHz. An SX1276 board built for 868 MHz (for example 
 It uses ESPHome's official `sx127x` component.
 
 What it does:
-- a fan entity with speed 1-3, like the RFZ remote;
+- a fan entity with speed 1-3, like the RFZ remote. The RFZ and the RPMe have no off: turning the entity off sets
+  speed 1;
+- `set_timer(minutes)`: speed 3 for a while, like the RFZ clock button (10 minutes short press, 30 long). The
+  example has buttons for both;
 - every speed change is resent until the fan confirms it (command 0x07 with the requested speed), then closed
   with 0x05, like the RFZ does;
 - the fan is queried every `query_interval`. Speed changes made with an RFZ are picked up as well, because

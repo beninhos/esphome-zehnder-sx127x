@@ -36,6 +36,15 @@ int main() {
   for (size_t i = 0; i < AIR_LEN; i++)
     assert(air[i] == RFZ_SET_SPEED_2[i]);
 
+  // Timer frame as the RFZ clock button sends it (seen on air: command 03, params 02 03 0A), and a query without params.
+  const uint8_t timer[2] = {3, 10};
+  build(g, 0x1A2B3C4D, 0x00, 0xA1, CMD_SET_TIMER, timer, 2);
+  encode(g, air);
+  assert(decode(air, f) && f[COMMAND] == 0x03 && f[PARAM_COUNT] == 2 && f[PARAMS] == 3 && f[PARAMS + 1] == 10);
+  build(g, 0x1A2B3C4D, 0x2C, 0xA1, CMD_QUERY, nullptr, 0);
+  encode(g, air);
+  assert(decode(air, f) && f[COMMAND] == 0x10 && f[PARAM_COUNT] == 0 && f[PARAMS] == 0);
+
   // One flipped chip breaks Manchester; one flipped bit pair (valid chips) breaks the CRC.
   uint8_t bad[AIR_LEN];
   for (size_t i = 0; i < AIR_LEN; i++)

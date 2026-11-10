@@ -72,6 +72,16 @@ fan:
       id: rf_noise
       name: RF noise
 
+button:
+  - platform: template
+    name: Timer 10 min
+    on_press:
+      - lambda: id(zehnder)->set_timer(10);
+  - platform: template
+    name: Timer 30 min
+    on_press:
+      - lambda: id(zehnder)->set_timer(30);
+
 # Optional: status on the board's OLED (SSD1306 128x64), three pages, the next one every 10 s.
 sensor:
   - platform: wifi_signal
@@ -109,10 +119,7 @@ display:
       - id: page_fan
         lambda: |-
           it.print(0, 0, id(small), "Ventilation");
-          if (id(zehnder).state)
-            it.printf(0, 15, id(large), "Speed %d", id(zehnder).speed);
-          else
-            it.print(0, 15, id(large), "Off");
+          it.printf(0, 15, id(large), "Speed %d%s", id(zehnder).speed, id(zehnder)->timer_active() ? " (timer)" : "");
           it.print(0, 48, id(small), id(confirmed).state ? "Confirmed" : "No answer");
       - id: page_radio
         lambda: |-

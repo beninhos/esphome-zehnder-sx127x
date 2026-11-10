@@ -30,10 +30,13 @@ class ZehnderSX127x : public fan::Fan, public Component, public sx127x::SX127xLi
   float get_setup_priority() const override { return setup_priority::LATE; }  // after the sx127x is configured
   fan::FanTraits get_traits() override { return fan::FanTraits(false, true, false, 3); }
   void on_packet(const std::vector<uint8_t> &packet, float rssi, float snr) override;
+  // Speed 3 for a while, like the RFZ clock button (short press: 10 minutes, long press: 30).
+  void set_timer(uint8_t minutes);
+  bool timer_active() const { return this->timer_ > 0; }
 
  protected:
   void control(const fan::FanCall &call) override;
-  void send_(uint8_t rx_id, uint8_t command, uint8_t param, uint8_t count, uint8_t tries);
+  void send_(uint8_t rx_id, uint8_t command, const uint8_t *params, uint8_t count, uint8_t tries);
   void transmit_();
   void transmit_frame_(const uint8_t *frame);
   void watch_receiver_();
@@ -65,6 +68,7 @@ class ZehnderSX127x : public fan::Fan, public Component, public sx127x::SX127xLi
   uint32_t last_reply_{0};
   bool have_reply_{false};
   uint32_t last_poll_us_{0};
+  uint8_t timer_{0};
   bool ack_pending_{false};
   uint32_t ack_at_{0};
   bool triggered_{false};

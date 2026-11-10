@@ -20,6 +20,7 @@ static constexpr uint8_t TYPE_MAIN_UNIT = 0x01;
 static constexpr uint8_t TYPE_REMOTE = 0x03;
 static constexpr uint8_t TTL = 0xFA;
 static constexpr uint8_t CMD_SET_SPEED = 0x02;
+static constexpr uint8_t CMD_SET_TIMER = 0x03;     // params: speed, minutes (RFZ clock button: 3, 10 or 30)
 static constexpr uint8_t CMD_FAN_SETTINGS = 0x07;  // fan -> remote: count, speed, voltage %, timer, ...
 static constexpr uint8_t CMD_QUERY = 0x10;
 
@@ -80,7 +81,8 @@ inline void build(uint8_t *frame, uint32_t network, uint8_t rx_id, uint8_t tx_id
   if (count > 9)
     count = 9;
   frame[PARAM_COUNT] = count;
-  memcpy(frame + PARAMS, params, count);
+  if (count > 0)
+    memcpy(frame + PARAMS, params, count);
   uint16_t c = crc16(frame, FRAME_LEN - 2);
   frame[20] = c >> 8;
   frame[21] = c & 0xFF;
