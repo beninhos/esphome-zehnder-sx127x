@@ -11,7 +11,7 @@ It uses ESPHome's official `sx127x` component.
 Built on the protocol work of [Sanderhuisman](https://github.com/Sanderhuisman/ESPHome-Zehnder-RF) and
 [JoooostB](https://github.com/JoooostB/esphome-zehnder-comfoair-rf), this adds:
 
-- **Range:** an off-the-shelf 868 MHz board instead of an nRF905, through two concrete floors with ~39 dB to spare.
+- **Range:** an off-the-shelf 868 MHz board instead of an nRF905, enought to go through two concrete floors with ~39 dB to spare.
 - **No pairing:** the fan accepts commands from a remote ID it was never paired with.
 - **Real confirmation:** a speed change only counts when the fan reports that speed back; otherwise it is resent.
 - **In step with the wall remote:** presses on an RFZ show up in Home Assistant right away.
