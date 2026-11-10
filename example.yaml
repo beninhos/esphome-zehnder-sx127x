@@ -1,0 +1,65 @@
+# Example: Zehnder fan (RPMe, ComfoAir) on a LILYGO T3 V1.6.1 868 MHz (ESP32 + SX1276).
+esphome:
+  name: zehnder-fan
+  min_version: 2026.8.0
+
+esp32:
+  board: ttgo-lora32-v21
+  framework:
+    type: esp-idf
+
+external_components:
+  - source: github://beninhos/esphome-zehnder-sx127x
+    components: [zehnder_sx127x]
+
+logger:
+  level: INFO   # VERBOSE prints every frame: use it once to find network_id and fan_id
+
+api:
+  encryption: {}
+
+ota:
+  - platform: esphome
+
+wifi:
+  ap: {}
+
+captive_portal:
+
+# LILYGO T3 V1.6.1 pins (utilities.h, T3_V1_6_SX1276)
+spi:
+  clk_pin: GPIO5
+  mosi_pin: GPIO27
+  miso_pin: GPIO19
+
+sx127x:
+  id: radio
+  cs_pin: GPIO18
+  rst_pin: GPIO23
+  dio0_pin: GPIO26
+  frequency: 868400000     # channel 118. Add your board's crystal offset (ours: +20 kHz), see README
+  modulation: FSK
+  packet_mode: true
+  bitsync: true
+  bitrate: 100000          # 100 kchip/s = 50 kbit/s after Manchester coding
+  deviation: 50kHz
+  bandwidth: 125_0kHz
+  shaping: GAUSSIAN_BT_0_5
+  crc_enable: false        # the nRF905 CRC is done in software
+  preamble_polarity: 0x55
+  preamble_size: 1         # 0x55 + sync 0x55 0x99 = the nRF905 preamble
+  preamble_detect: 0       # preamble too short for the detector: trigger on RSSI
+  rx_floor: -95
+  sync_value: [0x55, 0x99]
+  payload_length: 44
+  pa_power: 10             # +10 dBm like the nRF905; stay under 25 mW e.r.p. with your antenna
+
+fan:
+  - platform: zehnder_sx127x
+    name: Ventilation
+    network_id: 0x1A2B3C4D # from the VERBOSE log while pressing your RFZ remote
+    fan_id: 0x2C           # the fan's ID in that log (tx type 01)
+    remote_id: 0x5A        # any unused ID 0x01-0xFE; no pairing needed
+    query_interval: 60s
+    confirmed:
+      name: Ventilation confirmed

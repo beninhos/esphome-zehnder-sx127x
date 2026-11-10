@@ -1,0 +1,4 @@
+.esphome/
+/secrets.yaml
+test_protocol
+__pycache__/
