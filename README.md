@@ -3,8 +3,7 @@
 ESPHome fan component for Zehnder ventilation units with RF control, using a cheap **868 MHz SX1276 board** instead of an nRF905 module.
 
 The Zehnder RF protocol runs on a Nordic nRF905 at 868.4 MHz. Most nRF905 modules for sale are tuned for 433 MHz
-and only reach 1-2 m at 868 MHz. An SX1276 board built for 868 MHz (for example the LILYGO T3 V1.6.1 868 MHz,
-about €22) can speak the same frames in FSK packet mode. The Manchester coding and the CRC are done in software.
+and only reach 1-2 m at 868 MHz. An SX1276 board built for 868 MHz (for example the LILYGO T3 V1.6.1 868 MHz) can speak the same frames in FSK packet mode. The Manchester coding and the CRC are done in software.
 It uses ESPHome's official `sx127x` component.
 
 What it does:
