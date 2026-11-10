@@ -6,7 +6,19 @@ The Zehnder RF protocol runs on a Nordic nRF905 at 868.4 MHz. Most nRF905 module
 and only reach 1-2 m at 868 MHz. An SX1276 board built for 868 MHz (for example the LILYGO T3 V1.6.1 868 MHz) can speak the same frames in FSK packet mode. The Manchester coding and the CRC are done in software.
 It uses ESPHome's official `sx127x` component.
 
-What it does:
+## What's new
+
+Built on the protocol work of [Sanderhuisman](https://github.com/Sanderhuisman/ESPHome-Zehnder-RF) and
+[JoooostB](https://github.com/JoooostB/esphome-zehnder-comfoair-rf), this adds:
+
+- **Range:** an off-the-shelf 868 MHz board instead of an nRF905, through two concrete floors with ~39 dB to spare.
+- **No pairing:** the fan accepts commands from a remote ID it was never paired with.
+- **Real confirmation:** a speed change only counts when the fan reports that speed back; otherwise it is resent.
+- **In step with the wall remote:** presses on an RFZ show up in Home Assistant right away.
+- **Signal, noise and an OLED status display** for finding a good spot.
+
+## What it does
+
 - a fan entity with speed 1-3, like the RFZ remote. The RFZ and the RPMe have no off: turning the entity off sets
   speed 1;
 - `set_timer(minutes)`: speed 3 for a while, like the RFZ clock button (10 minutes short press, 30 long). The
