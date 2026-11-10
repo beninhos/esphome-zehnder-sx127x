@@ -58,12 +58,80 @@ fan:
   - platform: zehnder_sx127x
     name: Ventilation
     network_id: 0x1A2B3C4D # from the VERBOSE log while pressing your RFZ remote
+    id: zehnder
     fan_id: 0x2C           # the fan's ID in that log (tx type 01)
     remote_id: 0x5A        # any unused ID 0x01-0xFE; no pairing needed
     query_interval: 60s
     confirmed:
+      id: confirmed
       name: Ventilation confirmed
     signal:
+      id: fan_signal
       name: Fan signal
     noise:
+      id: rf_noise
       name: RF noise
+
+# Optional: status on the board's OLED (SSD1306 128x64), three pages, the next one every 10 s.
+sensor:
+  - platform: wifi_signal
+    id: wifi_dbm
+    name: WiFi signal
+    update_interval: 10s
+
+text_sensor:
+  - platform: wifi_info
+    ssid:
+      id: wifi_ssid
+    ip_address:
+      id: wifi_ip
+
+i2c:
+  sda: GPIO21
+  scl: GPIO22
+  frequency: 400kHz        # a full redraw then takes ~23 ms; at the default 50 kHz ~180 ms, with the radio deaf
+
+font:
+  - file: "gfonts://Roboto"
+    id: small
+    size: 12
+  - file: "gfonts://Roboto"
+    id: large
+    size: 22
+
+display:
+  - platform: ssd1306_i2c
+    id: oled
+    model: "SSD1306 128x64"
+    address: 0x3C
+    update_interval: never  # redraw only on a page change (interval below)
+    pages:
+      - id: page_fan
+        lambda: |-
+          it.print(0, 0, id(small), "Ventilation");
+          if (id(zehnder).state)
+            it.printf(0, 15, id(large), "Speed %d", id(zehnder).speed);
+          else
+            it.print(0, 15, id(large), "Off");
+          it.print(0, 48, id(small), id(confirmed).state ? "Confirmed" : "No answer");
+      - id: page_radio
+        lambda: |-
+          it.print(0, 0, id(small), "Radio 868.4 MHz");
+          float s = id(fan_signal).state, n = id(rf_noise).state;
+          if (std::isnan(s)) it.print(0, 16, id(small), "Fan: --");
+          else it.printf(0, 16, id(small), "Fan: %.0f dBm", s);
+          if (std::isnan(n)) it.print(0, 32, id(small), "Noise: --");
+          else it.printf(0, 32, id(small), "Noise: %.0f dBm", n);
+          if (!std::isnan(s) && !std::isnan(n)) it.printf(0, 48, id(small), "Margin: %.0f dB", s - n);
+      - id: page_wifi
+        lambda: |-
+          it.print(0, 0, id(small), "WiFi");
+          it.print(0, 16, id(small), id(wifi_ssid).state.c_str());
+          it.print(0, 32, id(small), id(wifi_ip).state.c_str());
+          if (!std::isnan(id(wifi_dbm).state)) it.printf(0, 48, id(small), "%.0f dBm", id(wifi_dbm).state);
+
+interval:
+  - interval: 10s
+    then:
+      - display.page.show_next: oled
+      - component.update: oled

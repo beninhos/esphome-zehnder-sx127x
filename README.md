@@ -47,6 +47,14 @@ Not tested: ComfoAir units.
 3. Set `logger` back to `INFO`. Logging every frame over wifi costs milliseconds, and the fan sends its frames
    about 25 ms apart in bursts.
 
+## Display
+
+The LILYGO T3 has a 0.96" OLED. [example.yaml](example.yaml) uses it for status, three pages that rotate every
+10 s: fan speed and whether the fan confirmed it, the radio (fan signal, noise, margin), and WiFi (network, IP,
+signal). Useful when choosing a spot for the board. Keep `frequency: 400kHz` on the I2C bus and
+`update_interval: never` on the display: a redraw blocks the main loop, and at the default 50 kHz it takes
+~180 ms in which the radio misses frames. Leave the display part out if you don't need it.
+
 ## How it works
 
 On air, after the SX127x preamble and sync (`0x55` + `0x55 0x99`, which is the 10-bit nRF905 preamble
