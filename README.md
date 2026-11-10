@@ -1,7 +1,6 @@
 # esphome-zehnder-sx127x
 
-ESPHome fan component for Zehnder ventilation units with RF control (tested: Zehnder RPMe roof fan with RFZ
-remotes), using a cheap **868 MHz SX1276 board** instead of an nRF905 module.
+ESPHome fan component for Zehnder ventilation units with RF control, using a cheap **868 MHz SX1276 board** instead of an nRF905 module.
 
 The Zehnder RF protocol runs on a Nordic nRF905 at 868.4 MHz. Most nRF905 modules for sale are tuned for 433 MHz
 and only reach 1-2 m at 868 MHz. An SX1276 board built for 868 MHz (for example the LILYGO T3 V1.6.1 868 MHz,
@@ -20,7 +19,7 @@ No pairing is needed. The fan answered queries and speed commands from a remote 
 
 ## Tested
 
-10 November 2026: Zehnder RPMe, an RFZ remote, LILYGO T3 V1.6.1 868 MHz with its stock antenna, ESPHome
+Zehnder RPMe, an RFZ remote, LILYGO T3 V1.6.1 868 MHz with its stock antenna, ESPHome
 2026.8.2. The board sits in a garage, two concrete floors and a cavity wall away from the roof fan. The fan's
 replies arrive at about -71 dBm.
 
@@ -30,8 +29,7 @@ Seen in tests:
 - **Speed changes:** 1 → 2 → 1, four seconds apart. Before the 0x05 ack was added, a second change within
   seconds was answered with the old speed and ignored.
 
-Not tested: speed 3 from this component, "off" (sends speed 0, like the original firmware), the timer (command
-0x03), and ComfoAir units.
+Not tested: ComfoAir units.
 
 ## Setup
 
